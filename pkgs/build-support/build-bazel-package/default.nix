@@ -158,9 +158,6 @@ stdenv.mkDerivation (fBuildAttrs // {
       ${lib.optionalString removeLocalConfigCc "rm -rf $bazelOut/external/{local_config_cc,\\@local_config_cc.marker}"}
       ${lib.optionalString removeLocal "rm -rf $bazelOut/external/{local_*,\\@local_*.marker}"}
 
-      # Clear markers
-      find $bazelOut/external -name '@*\.marker' -exec sh -c 'echo > {}' \;
-
       # Remove all vcs files
       rm -rf $(find $bazelOut/external -type d -name .git)
       rm -rf $(find $bazelOut/external -type d -name .svn)

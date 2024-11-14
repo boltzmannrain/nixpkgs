@@ -62,7 +62,7 @@ buildBazelPackage {
       rm -rf $bazelOut/external/fcitx5
     '';
 
-    sha256 = "sha256-wz2lJckr7Pu4jtoejjFv8LdjVO2+ferrS473M4jc86I=";
+    sha256 = "sha256-pTSuR4OAAlr4lAL7yrijtM3YTxI4HKIBYItp3XqWL/M=";
   };
 
   preConfigure = ''
