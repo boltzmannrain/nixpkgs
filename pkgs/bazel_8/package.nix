@@ -34,7 +34,7 @@
   # Toggle for hacks for running bazel under buildBazelPackage:
   # Always assume all markers valid (this is needed because we remove markers; they are non-deterministic).
   # Also, don't clean up environment variables (so that NIX_ environment variables are passed to compilers).
-  version ? "8.3.1",
+  version ? "8.4.0rc1",
 }:
 
 let
@@ -48,7 +48,7 @@ let
 
   src = fetchzip {
     url = "https://github.com/bazelbuild/bazel/releases/download/${version}/bazel-${version}-dist.zip";
-    hash = "sha256-Hiny31S+YF7JdKjxzCyKdw3J/3OdDwsKeOkppfvWrNI=";
+    hash = "sha256-f5oZ4+NLUeh6kvhlZjRs/Dow9z92640Znm4wMAc4jCI=";
     stripRoot = false;
   };
 
@@ -163,12 +163,12 @@ let res = stdenv.mkDerivation rec {
     ./patches/trim-last-argument-to-gcc-if-empty.patch
 
     # fdopen() compilation fix
-    (fetchpatch {
-      url = "https://github.com/madler/zlib/commit/4bd9a71f3539b5ce47f0c67ab5e01f3196dc8ef9.patch";
-      hash = "sha256-wlZY0/XqND5Fk+SJkUCUj7XhGVwUJw/VqVGAlDdqOhs=";
-      stripLen = 1;
-      extraPrefix = "third_party/zlib/";
-    })
+#    (fetchpatch {
+#      url = "https://github.com/madler/zlib/commit/4bd9a71f3539b5ce47f0c67ab5e01f3196dc8ef9.patch";
+#      hash = "sha256-wlZY0/XqND5Fk+SJkUCUj7XhGVwUJw/VqVGAlDdqOhs=";
+#      stripLen = 1;
+#      extraPrefix = "third_party/zlib/";
+#    })
   ];
 
   patches = lib.optionals isDarwin darwinPatches ++ [
