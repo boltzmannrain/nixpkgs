@@ -60,15 +60,14 @@ let
           serverJavabase
           ;
         command = "fetch";
-        #dontFixup = true; # todo: repo_contents_cache
         outputHashMode = "recursive";
-        commandArgs = [ "--repository_cache $repo_cache" "--repository_contents_cache=" ] ++ commandArgs;
+        commandArgs = [ "--repository_cache=repo_cache" ] ++ commandArgs;
         bazelPreBuild = ''
-          export repo_cache=$(mktemp -d)
+          mkdir repo_cache
         '';
         installPhase = ''
           mkdir -p $out/repo_cache
-          cp -r --reflink=auto $repo_cache/* $out/repo_cache
+          cp -r --reflink=auto repo_cache/* $out/repo_cache
         '';
       });
   # Stage1: FOD produced by `bazel vendor`, Stage2: eventual patchelf or other tuning
@@ -106,7 +105,7 @@ let
             dontFixup = true;
             command = "vendor";
             outputHashMode = "recursive";
-            commandArgs = [ "--vendor_dir vendor_dir" ] ++ commandArgs;
+            commandArgs = [ "--vendor_dir=vendor_dir" ] ++ commandArgs;
             bazelPreBuild = ''
               mkdir vendor_dir
             '';

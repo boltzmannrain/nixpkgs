@@ -25,8 +25,8 @@ stdenv.mkDerivation (
     preBuildPhase =
       (lib.optionalString (bazelRepoCache != null) ''
         # repo_cache needs to be writeable even in air-gapped builds
-        export repo_cache=$(mktemp -d)
-        ${lndir}/bin/lndir -silent ${bazelRepoCache}/repo_cache $repo_cache
+        mkdir repo_cache
+        ${lndir}/bin/lndir -silent ${bazelRepoCache}/repo_cache repo_cache
       '')
 
       + (lib.optionalString (bazelVendorDeps != null) ''
@@ -35,7 +35,7 @@ stdenv.mkDerivation (
 
         # pin all deps to avoid re-fetch attempts by Bazel
         rm vendor_dir/VENDOR.bazel
-        find vendor_dir -maxdepth 1 -type d -printf "pin(\"@@%P\")\n" > vendor_dir/VENDOR.bazel
+        find vendor_dir -mindepth 1 -maxdepth 1 -type d -printf "pin(\"@@%P\")\n" > vendor_dir/VENDOR.bazel
       '')
       # keep preBuildPhase always defined as it is listed in preBuildPhases
       + ''
@@ -49,19 +49,20 @@ stdenv.mkDerivation (
       ${bazelPreBuild}
 
       ${bazel}/bin/bazel ${
-        lib.strings.concatStringsSep " " (
+        lib.escapeShellArgs (
           lib.optional (serverJavabase != null) "--server_javabase=${serverJavabase}"
           ++ [ "--batch" ]
           ++ startupArgs
         )
       } ${command} ${
-        lib.strings.concatStringsSep " " (
+        lib.escapeShellArgs (
           lib.optional (registry != null) "--registry=file://${registry}"
-          ++ lib.optional (bazelRepoCache != null) "--repository_cache=$repo_cache"
+          ++ lib.optional (bazelRepoCache != null) "--repository_cache=repo_cache"
           ++ lib.optional (bazelVendorDeps != null) "--vendor_dir=vendor_dir"
           ++ commandArgs
+          ++ targets
         )
-      } ${lib.strings.concatStringsSep " " targets}
+      }
 
       ${bazelPostBuild}
 

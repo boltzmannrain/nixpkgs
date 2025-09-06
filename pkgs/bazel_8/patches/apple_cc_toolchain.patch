@@ -1,8 +1,8 @@
 diff --git a/MODULE.bazel b/MODULE.bazel
-index 11a6075175..f53f0c732b 100644
+index b3dde1c838..a54bf8141d 100644
 --- a/MODULE.bazel
 +++ b/MODULE.bazel
-@@ -35,10 +35,10 @@ bazel_dep(name = "with_cfg.bzl", version = "0.6.0")
+@@ -36,10 +36,10 @@ bazel_dep(name = "abseil-cpp", version = "20240722.0.bcr.2")
  bazel_dep(name = "rules_shell", version = "0.2.0")
  bazel_dep(name = "chicory", version = "1.1.0")
  
@@ -16,4 +16,3 @@ index 11a6075175..f53f0c732b 100644
  
  # repo_name needs to be used, until WORKSPACE mode is to be supported in bazel_tools
  bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf")
-

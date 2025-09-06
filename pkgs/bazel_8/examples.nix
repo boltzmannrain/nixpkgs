@@ -14,14 +14,14 @@ let
   registry = fetchFromGitHub {
     owner = "bazelbuild";
     repo = "bazel-central-registry";
-    rev = "d62c4697dc09532aff9491f99ca535e1a495d24a";
-    sha256 = "sha256-LdlSnlfJ/066elVkG8CAFxBUaQSL8Y1iBDkH+wzHitk=";# lib.fakeHash; # "sha256-VT63Y8w9BawBXl5xgujG4Gv3SEGbUADGVsNPdUoDvsY=";
+    rev = "722299976c97e5191045c8016b7c8532189fc3f6";
+    sha256 = "sha256-hi5BKI94am2LCXD93GBeT0gsODxGeSsd0OrhTwpNAgM=";
   };
   src = fetchFromGitHub {
     owner = "bazelbuild";
     repo = "examples";
-    rev = "568db753be213cc4be6c599e54ca64061ddbe6da";
-    sha256 = "sha256-F+iKi82uGWmJ+ICpITePdsA1SkncavSdgLkOKMr5LwM=";
+    rev = "9d6a2e67d29b8b6208d22d70cb22880345bb6803";
+    sha256 = "sha256-NQqXsmX7hyTqLINkz1rnavx15jQTdIKpotw42rGc5mc=";
   };
 in
 {
@@ -45,12 +45,14 @@ in
     '';
     nativeBuildInputs = lib.optional (stdenv.hostPlatform.isDarwin) cctools;
     bazelRepoCacheFOD = {
-      outputHash = lib.attrsets.attrByPath [ stdenv.hostPlatform.system ] null {
-        x86_64-linux = "sha256-RfM5b+D0KjqNOr3Q0KgHvYwCTkFWZDIipj5iLKbnEWQ="; #lib.fakeHash; # "sha256-64Ze+t0UYR2qQNECWes27SjzdkP+z5eJsCAO+OR+h/o=";
-        x86_64-darwin = lib.fakeHash;
-        aarch64-linux = "sha256-vEcOTdJM2YYle3PijKwroyM7LpfyK/3k/egRKDbjsmU=";
-        aarch64-darwin = "sha256-ya85EJikYXWpjtlgNu7i0DqtACgZBsppGEv3SVoJ6JA=";
-      };
+      outputHash =
+        {
+          aarch64-darwin = "sha256-FwHsg9P65Eu/n8PV7UW90bvBNG+U67zizRy6Krk32Yg=";
+          aarch64-linux = "sha256-W8h2tCIauGnEvPpXje19bZUE/izHaCQ0Wj4nMaP3nkc=";
+          x86_64-darwin = "sha256-XIrGRmYDDRN3Kkt1dFWex1bPRMeIHAR+XWLqB/PpOAM=";
+          x86_64-linux = "sha256-VBckTQAK5qeyi2ublk+Dcga5O5XZg3bfHR6Yaw6vSp0=";
+        }
+        .${stdenv.hostPlatform.system};
       outputHashAlgo = "sha256";
     };
   };
@@ -75,10 +77,10 @@ in
     bazelRepoCacheFOD = {
       outputHash =
         {
-          x86_64-linux = "sha256-RqAT/CtJPDGtNucUcmBkH6H4oo1QedzsYE/eV5igld0="; #lib.fakeHash; # "sha256-oPPWQdflAPMxF9YPazC//r0R3Sh6fUmNQe0oLM5EBUI=";
-          aarch64-linux = "sha256-oPPWQdflAPMxF9YPazC//r0R3Sh6fUmNQe0oLM5EBUI=";
-          aarch64-darwin = "sha256-oPPWQdflAPMxF9YPazC//r0R3Sh6fUmNQe0oLM5EBUI=";
-          x86_64-darwin = lib.fakeHash;
+          aarch64-darwin = "sha256-l6qJU0zGIKl12TYYsG5b+upswUA0hGE+VtQ9QnKpBh8=";
+          aarch64-linux = "sha256-l6qJU0zGIKl12TYYsG5b+upswUA0hGE+VtQ9QnKpBh8=";
+          x86_64-darwin = "sha256-l6qJU0zGIKl12TYYsG5b+upswUA0hGE+VtQ9QnKpBh8=";
+          x86_64-linux = "sha256-l6qJU0zGIKl12TYYsG5b+upswUA0hGE+VtQ9QnKpBh8=";
         }
         .${stdenv.hostPlatform.system};
       outputHashAlgo = "sha256";
@@ -106,10 +108,10 @@ in
     bazelVendorDepsFOD = {
       outputHash =
         {
-          aarch64-linux = "sha256-2xopm/OCg9A1LqoW1ZesQc5pF/vX0ToIj1JYMtweVR0=";
-          x86_64-linux = "sha256-Ib0UAvwNZNXoVMibYUG3OPCh9to7y8qjss5rhG1iDJA=";#lib.fakeHash; # "sha256-v987hMC6w2Lwr/PZn2zGHhHmXzecI2koLjOmGz0Mzng=";
-          aarch64-darwin = "sha256-sS7PzLI44dX7P0PY/68YjRSDkNJ6w5BklJNsXPHuOPc=";
-          x86_64-darwin = lib.fakeHash;
+          aarch64-darwin = "sha256-D5bwW35QuLLhVE22FDyV9Nl8N7ULx71wCHbzB81+Xx0=";
+          aarch64-linux = "sha256-F5X/cwtHR6sVFe1DzNDaEnGMIPR0SnXq2iIxhQeqIV8=";
+          x86_64-darwin = "sha256-DXuPy68m3p6hlgEid7tpY8fGgvJWQTXth6h2kMSNFCc=";
+          x86_64-linux = "sha256-oNLDccQ/XPg1Nl/9V14NdgiQsRoTvpaA6hyynMb414A=";
         }
         .${stdenv.hostPlatform.system};
       outputHashAlgo = "sha256";

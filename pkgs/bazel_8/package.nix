@@ -31,10 +31,7 @@
   cctools,
   # Allow to independently override the jdks used to build and run respectively
   jdk_headless,
-  # Toggle for hacks for running bazel under buildBazelPackage:
-  # Always assume all markers valid (this is needed because we remove markers; they are non-deterministic).
-  # Also, don't clean up environment variables (so that NIX_ environment variables are passed to compilers).
-  version ? "8.4.0rc1",
+  version ? "8.4.0",
 }:
 
 let
@@ -48,7 +45,7 @@ let
 
   src = fetchzip {
     url = "https://github.com/bazelbuild/bazel/releases/download/${version}/bazel-${version}-dist.zip";
-    hash = "sha256-f5oZ4+NLUeh6kvhlZjRs/Dow9z92640Znm4wMAc4jCI=";
+    hash = "sha256-yO2bUHBoKSB8BYR9/EKnIY/nH/F2dz5/mBzzfuM3JEY=";
     stripRoot = false;
   };
 
@@ -96,26 +93,25 @@ let
     ];
   defaultShell = callPackage ./defaultShell.nix { } { inherit defaultShellUtils; };
 
-  commandArgs =
-    [
-      "--nobuild_python_zip"
-      "--features=-module_maps"
-      "--host_features=-module_maps"
-      "--announce_rc"
-      "--verbose_failures"
-      "--curses=no"
-    ]
-    ++ lib.optionals (isDarwin) [
-      "--macos_sdk_version=${stdenv.hostPlatform.darwinMinVersion}"
-      "--cxxopt=-isystem"
-      "--cxxopt=${lib.getDev stdenv.cc.libcxx}/include/c++/v1"
-      "--host_cxxopt=-isystem"
-      "--host_cxxopt=${lib.getDev stdenv.cc.libcxx}/include/c++/v1"
-      "--copt=-isystem"
-      "--copt=${lib.getDev darwin.libresolv}/include"
-      "--host_copt=-isystem"
-      "--host_copt=${lib.getDev darwin.libresolv}/include"
-    ];
+  commandArgs = [
+    "--nobuild_python_zip"
+    "--features=-module_maps"
+    "--host_features=-module_maps"
+    "--announce_rc"
+    "--verbose_failures"
+    "--curses=no"
+  ]
+  ++ lib.optionals (isDarwin) [
+    "--macos_sdk_version=${stdenv.hostPlatform.darwinMinVersion}"
+    "--cxxopt=-isystem"
+    "--cxxopt=${lib.getDev stdenv.cc.libcxx}/include/c++/v1"
+    "--host_cxxopt=-isystem"
+    "--host_cxxopt=${lib.getDev stdenv.cc.libcxx}/include/c++/v1"
+    "--copt=-isystem"
+    "--copt=${lib.getDev darwin.libresolv}/include"
+    "--host_copt=-isystem"
+    "--host_copt=${lib.getDev darwin.libresolv}/include"
+  ];
 
 in
 let res = stdenv.mkDerivation rec {
@@ -161,14 +157,6 @@ let res = stdenv.mkDerivation rec {
     # This is breaking the build of any C target. This patch removes the last
     # argument if it's found to be an empty string.
     ./patches/trim-last-argument-to-gcc-if-empty.patch
-
-    # fdopen() compilation fix
-#    (fetchpatch {
-#      url = "https://github.com/madler/zlib/commit/4bd9a71f3539b5ce47f0c67ab5e01f3196dc8ef9.patch";
-#      hash = "sha256-wlZY0/XqND5Fk+SJkUCUj7XhGVwUJw/VqVGAlDdqOhs=";
-#      stripLen = 1;
-#      extraPrefix = "third_party/zlib/";
-#    })
   ];
 
   patches = lib.optionals isDarwin darwinPatches ++ [
@@ -242,21 +230,20 @@ let res = stdenv.mkDerivation rec {
     platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
 
-  nativeBuildInputs =
-    [
-      makeWrapper
-      jdk_headless
-      python3
-      unzip
-      which
+  nativeBuildInputs = [
+    makeWrapper
+    jdk_headless
+    python3
+    unzip
+    which
 
-      # Shell completion
-      installShellFiles
-      python3.pkgs.absl-py # Needed to build fish completion
-    ]
-    # Needed for execlog
-    ++ lib.optional (!stdenv.hostPlatform.isDarwin) stdenv.cc
-    ++ lib.optional (stdenv.hostPlatform.isDarwin) cctools;
+    # Shell completion
+    installShellFiles
+    python3.pkgs.absl-py # Needed to build fish completion
+  ]
+  # Needed for execlog
+  ++ lib.optional (!stdenv.hostPlatform.isDarwin) stdenv.cc
+  ++ lib.optional (stdenv.hostPlatform.isDarwin) cctools.libtool;
 
   buildPhase = ''
     runHook preBuild
@@ -272,6 +259,10 @@ let res = stdenv.mkDerivation rec {
     export EMBED_LABEL="${version}- (@non-git)"
 
     echo "Stage 1 - Running bazel bootstrap script"
+    # Note: can't use lib.escapeShellArgs here because it will escape arguments
+    #       with = using single quotes. This is fine for command invocations,
+    #       but for string variable they become literal single quote chars,
+    #       compile.sh will not unquote them either and command will be invalid.
     export EXTRA_BAZEL_ARGS="${lib.strings.concatStringsSep " " commandArgs}"
 
     ${bash}/bin/bash ./compile.sh
@@ -322,7 +313,7 @@ let res = stdenv.mkDerivation rec {
     substitute ${./bazel-execlog.sh} $out/bin/bazel-execlog \
       --subst-var out \
       --subst-var-by runtimeShell ${runtimeShell} \
-      --subst-var-by javaBin ${jdk_headless}/bin/java
+      --subst-var-by binJava ${jdk_headless}/bin/java
     chmod +x $out/bin/bazel-execlog
 
     # shell completion files
