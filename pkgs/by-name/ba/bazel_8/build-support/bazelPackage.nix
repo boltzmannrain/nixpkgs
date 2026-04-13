@@ -1,4 +1,6 @@
 {
+  bash,
+  coreutils,
   callPackage,
   gnugrep,
   lib,
@@ -22,10 +24,8 @@
     outputHash = null;
     outputHashAlgo = "sha256";
   },
-  bazelVendorDepsFOD ? {
-    outputHash = null;
-    outputHashAlgo = "sha256";
-  },
+  postUnpack ? null,
+  patches ? [ ],
   installPhase,
   buildInputs ? [ ],
   nativeBuildInputs ? [ ],
@@ -46,6 +46,8 @@ let
         inherit (bazelRepoCacheFOD) outputHash outputHashAlgo;
         inherit
           src
+          postUnpack
+          patches
           version
           sourceRoot
           env
@@ -70,7 +72,6 @@ let
           cp -r --reflink=auto repo_cache/* $out/repo_cache
         '';
       });
-  # Stage1: FOD produced by `bazel vendor`, Stage2: eventual patchelf or other tuning
   # Vendor deps contains unpacked&patches external dependencies, this may need Nix-specific
   # patching to address things like
   # - broken symlinks
@@ -78,71 +79,88 @@ let
   # - autoPatchelf for externally-fetched binaries
   #
   # Either repo cache or vendor deps should be enough to build a given package
-  bazelVendorDeps =
-    if bazelVendorDepsFOD.outputHash == null then
-      null
-    else
-      (
-        let
-          stage1 = callPackage ./bazelDerivation.nix { } {
-            name = "bazelVendorDepsStage1";
-            inherit (bazelVendorDepsFOD) outputHash outputHashAlgo;
-            inherit
-              src
-              version
-              sourceRoot
-              env
-              buildInputs
-              nativeBuildInputs
-              ;
-            inherit registry;
-            inherit
-              bazel
-              targets
-              startupArgs
-              serverJavabase
-              ;
-            dontFixup = true;
-            command = "vendor";
-            outputHashMode = "recursive";
-            commandArgs = [ "--vendor_dir=vendor_dir" ] ++ commandArgs;
-            bazelPreBuild = ''
-              mkdir vendor_dir
-            '';
-            bazelPostBuild = ''
-              # remove symlinks that point to locations under bazel_src/
-              find vendor_dir -type l -lname "$HOME/*" -exec rm '{}' \;
-              # remove symlinks to temp build directory on darwin
-              find vendor_dir -type l -lname "/private/var/tmp/*" -exec rm '{}' \;
-              # remove broken symlinks
-              find vendor_dir -xtype l -exec rm '{}' \;
+  # TODO: make vendoring stage opt-in if no patching is needed
+  # TODO: also consider simple text patching ability via registry rewrites
+  bazelVendorDeps = callPackage ./bazelDerivation.nix { } {
+    name = "bazelVendorDeps";
+    inherit
+      src
+      postUnpack
+      patches
+      version
+      sourceRoot
+      env
+      nativeBuildInputs
+      ;
+    inherit registry bazelRepoCache;
+    inherit
+      bazel
+      targets
+      startupArgs
+      serverJavabase
+      ;
+    buildInputs = lib.optional (!stdenv.hostPlatform.isDarwin) autoPatchelfHook ++ buildInputs;
+    inherit autoPatchelfIgnoreMissingDeps;
+    # autoPatchelf will cross-link different jdks if run on top-level, we'll run manually
+    dontAutoPatchelf = true;
+    command = "vendor";
+    commandArgs = [ "--vendor_dir=vendor_dir" ] ++ commandArgs;
+    bazelPreBuild = ''
+      mkdir vendor_dir
+    '';
+    bazelPostBuild = ''
+                    # remove symlinks that point to locations under bazel_src/
+                    find vendor_dir -type l -lname "$HOME/*" -exec rm '{}' \;
+                    # remove symlinks to temp build directory on darwin
+                    find vendor_dir -type l -lname "/private/var/tmp/*" -exec rm '{}' \;
+                    # remove broken symlinks
+                    find vendor_dir -xtype l -exec rm '{}' \;
 
-              # remove .marker files referencing NIX_STORE as those references aren't allowed in FOD
-              (${gnugrep}/bin/grep -rI "$NIX_STORE/" vendor_dir --files-with-matches --include="*.marker" --null || true) \
-                | xargs -0 --no-run-if-empty rm
-            '';
-            installPhase = ''
-              mkdir -p $out/vendor_dir
-              cp -r --reflink=auto vendor_dir/* $out/vendor_dir
-            '';
+                    # remove .marker files referencing NIX_STORE as those references aren't allowed in FOD
+                    (${gnugrep}/bin/grep -rI "$NIX_STORE/" vendor_dir --files-with-matches --include="*.marker" --null || true) \
+                      | xargs -0 --no-run-if-empty rm
 
-          };
-        in
-        stdenv.mkDerivation {
-          name = "bazelVendorDeps";
-          buildInputs = lib.optional (!stdenv.hostPlatform.isDarwin) autoPatchelfHook ++ buildInputs;
-          inherit autoPatchelfIgnoreMissingDeps;
-          src = stage1;
-          installPhase = ''
-            cp -r . $out
-          '';
-        }
-      );
+                    function sedVerbose() {
+                      local path=$1; shift;
+                      sed -i".bak-nix" "$path" "$@"
+                      diff -U0 "$path.bak-nix" "$path" | sed "s/^/  /" || true
+                      rm -f "$path.bak-nix"
+                    }
+                    # TODO: make opt-in & customizable
+                    ${gnugrep}/bin/grep -rlZ --include="*.bzl" --include "BUILD.bazel" --include "BUILD" /bin/bash vendor_dir \
+                      | while IFS="" read -r -d "" path; do
+                          echo "$path"
+                          sedVerbose "$path" \
+                            -e 's!/usr/bin/bash!${bash}/bin/bash!g' \
+                            -e 's!/bin/bash!${bash}/bin/bash!g'
+                      done;
+                    # TODO: make opt-in & customizable
+                    ${gnugrep}/bin/grep -rlZ --include="*.bzl" --include "BUILD.bazel" --include "BUILD" --include "java_stub_template.txt" /usr/bin/env vendor_dir \
+                      | while IFS="" read -r -d "" path; do
+                          echo "$path"
+                          sedVerbose "$path" \
+                            -e 's!/usr/bin/env bash!${bash}/bin/bash!g' \
+                            -e 's!/usr/bin/env!${coreutils}/bin/env!g'
+                      done;
+    '';
+    installPhase = ''
+      mkdir -p $out/vendor_dir
+      cp -r --reflink=auto vendor_dir/* $out/vendor_dir
+      # autoPatchelf may fail on some paths without permissions change
+      chmod -R u+w $out/vendor_dir
+      # TODO: make opt-in & customizable
+      # NOTE: this can be really slow on huge vendor dirs due to per-invocation overhead
+      for x in `find $out/vendor_dir -type d -maxdepth 1 -mindepth 1`; do autoPatchelf "$x"; done;
+    '';
+
+  };
 
   package = callPackage ./bazelDerivation.nix { } {
     inherit
       name
       src
+      postUnpack
+      patches
       version
       sourceRoot
       env
