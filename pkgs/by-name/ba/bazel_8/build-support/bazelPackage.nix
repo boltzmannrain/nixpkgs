@@ -25,6 +25,7 @@
     outputHashAlgo = "sha256";
   },
   postUnpack ? null,
+  bazelPreBuild ? "", # TODO: find a better interface, currently whether it is before or mkdir isn't clear
   patches ? [ ],
   installPhase,
   buildInputs ? [ ],
@@ -70,7 +71,7 @@ let
         commandArgs = [ "--repository_cache=repo_cache" ] ++ commandArgs;
         bazelPreBuild = ''
           mkdir repo_cache
-        '';
+        '' + bazelPreBuild;
         installPhase = ''
           mkdir -p $out/repo_cache
           cp -r --reflink=auto repo_cache/* $out/repo_cache
@@ -111,7 +112,7 @@ let
     commandArgs = [ "--vendor_dir=vendor_dir" ] ++ commandArgs;
     bazelPreBuild = ''
       mkdir vendor_dir
-    '';
+    '' + bazelPreBuild;
     bazelPostBuild = ''
                     # remove symlinks that point to locations under bazel_src/
                     find vendor_dir -type l -lname "$HOME/*" -exec rm '{}' \;

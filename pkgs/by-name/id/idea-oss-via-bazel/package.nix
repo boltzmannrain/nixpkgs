@@ -111,9 +111,22 @@ bazelPackage {
     (replaceVars ./bash.patch { bash = lib.getExe bash; })
     (replaceVars ./bazel.patch {
       bazel = lib.getExe bazel_8;
-      commandArgs = lib.concatStringsSep " " commandArgs;
+      commandArgs = lib.concatStringsSep " " (commandArgs ++ ["--registry=file://${registry}"]);
     })
   ];
+  bazelPreBuild = ''
+    # just in case there's no newline at the end of file
+    echo >> platform/build-scripts/bazel/.bazelrc
+    # covered by patch
+    # echo "common ${builtins.concatStringsSep " " commandArgs}" >> platform/build-scripts/bazel/.bazelrc
+    # echo "common --registry=file://${registry}" >> platform/build-scripts/bazel/.bazelrc
+
+    # TODO: tricky decision to make, for read flow nested bazel should see it, but for population flow
+    #       there's 2 bazel invocations sharing those dirs - is it safe? Or at least when deps&patches&options are the same?
+    # TODO: repo_cache&vendor_dir location being the same for read&populate flows might change in future?
+    [ -d repo_cache ] && echo "common --repository_cache=../../../repo_cache" >> platform/build-scripts/bazel/.bazelrc
+    [ -d vendor_dir ] && echo "common --vendor_dir=../../../vendor_dir" >> platform/build-scripts/bazel/.bazelrc
+  '';
   installPhase = ''
     # TODO:
     # - export SOURCE_DATE_EPOCH=1775948377 or some other recent time to make installer happy, or patch it
@@ -133,7 +146,7 @@ bazelPackage {
   bazelRepoCacheFOD = {
     outputHash =
       {
-        x86_64-linux = "sha256-Bo5Zv96bHykXcwDvNrGYaGzukHc51MNdypsEt7UeOpE=";
+        x86_64-linux = "sha256-3kKUhKOt8U0tN4++rHVnJaaQI99+ALExHLyPv148mJQ=";
       }
       .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";
