@@ -86,6 +86,11 @@ let
   # Either repo cache or vendor deps should be enough to build a given package
   # TODO: make vendoring stage opt-in if no patching is needed
   # TODO: also consider simple text patching ability via registry rewrites
+  #
+  # TODO: maybe vendorDeps should be fused with the main build? It's not a FOD anymore so why not
+  #       consider patching a patch phase during package build step? Would save disk space - repoCache
+  #       can be often compressed, vendorDeps are uncompressed and cover same content, modulo applied patches.
+  #       As opt-in it might be useful to grab patched vendor deps to debug outside nix build?
   bazelVendorDeps = callPackage ./bazelDerivation.nix { } {
     name = "bazelVendorDeps";
     inherit
