@@ -103,6 +103,10 @@ bazelPackage {
     })
     ./cc.patch
     (addFilePatch {
+      path = "b/build/cc_wrapper.patch";
+      file = replaceVars ./cc_wrapper.patch { bash = lib.getExe bash; };
+    })
+    (addFilePatch {
       # TODO: remove with newer idea-oss not using nested bazel for fetch phase
       path = "b/platform/build-scripts/bazel/build/cc_wrapper.patch";
       file = replaceVars ./cc_wrapper.patch { bash = lib.getExe bash; };

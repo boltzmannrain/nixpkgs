@@ -16,6 +16,18 @@ index b9241a0a40a3..556f62309321 100644
  bazel_dep(name = "rules_jvm", version = "0.0.1")
  bazel_dep(name = "protobuf", version = "33.4")
  single_version_override(
+@@ -64,7 +71,10 @@ bazel_dep(name = "toolchains_llvm", version = "1.6.0")
+ single_version_override(
+     module_name = "toolchains_llvm",
+     patch_strip = 1,
+-    patches = ["//build:toolchains_llvm-windows_support.patch"],  # Add Windows support, patch of https://github.com/bazel-contrib/toolchains_llvm/pull/642
++    patches = [
++        "//build:toolchains_llvm-windows_support.patch",
++        "//build:cc_wrapper.patch",
++    ],  # Add Windows support, patch of https://github.com/bazel-contrib/toolchains_llvm/pull/642
+ )
+ 
+ llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm", dev_dependency = True)  # `dev_dependency = True` to avoid leaking the extension in modules using that module, see https://github.com/bazel-contrib/toolchains_llvm/issues/569
 diff --git a/platform/build-scripts/bazel/MODULE.bazel b/platform/build-scripts/bazel/MODULE.bazel
 index 662dfca6c526..af93186d7588 100644
 --- a/platform/build-scripts/bazel/MODULE.bazel
