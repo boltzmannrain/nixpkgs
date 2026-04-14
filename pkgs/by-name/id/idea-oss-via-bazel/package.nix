@@ -133,7 +133,7 @@ bazelPackage {
   bazelRepoCacheFOD = {
     outputHash =
       {
-        x86_64-linux = "sha256-oVWi19px6S0akXezHZi97b+RnUfKXU4nbePzvKGD1cY=";
+        x86_64-linux = "sha256-Bo5Zv96bHykXcwDvNrGYaGzukHc51MNdypsEt7UeOpE=";
       }
       .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";

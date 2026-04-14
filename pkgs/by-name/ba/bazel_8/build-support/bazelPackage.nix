@@ -39,9 +39,13 @@ let
   #        isn't stable too. Parsing it into nix fetch* commands isn't trivial but might be possible)
   bazelRepoCache =
     if bazelRepoCacheFOD.outputHash == null then
+      # TODO: make repo cache required now that vendor FOD is removed?
       null
     else
       (callPackage ./bazelDerivation.nix { } {
+        # TODO: get rid of following steps to avoid possible bazel content-addressing issues?
+        # - shrinking RPATHs of ELF executables and libraries
+        # - patching script interpreter paths
         name = "bazelRepoCache";
         inherit (bazelRepoCacheFOD) outputHash outputHashAlgo;
         inherit
