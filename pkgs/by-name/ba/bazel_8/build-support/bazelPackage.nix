@@ -31,6 +31,7 @@
   buildInputs ? [ ],
   nativeBuildInputs ? [ ],
   autoPatchelfIgnoreMissingDeps ? null,
+  autoPatchelfVendorDirs ? [],
 }:
 let
   # FOD produced by `bazel fetch`
@@ -91,9 +92,9 @@ let
   #       consider patching a patch phase during package build step? Would save disk space - repoCache
   #       can be often compressed, vendorDeps are uncompressed and cover same content, modulo applied patches.
   #       As opt-in it might be useful to grab patched vendor deps to debug outside nix build?
-  bazelVendorDeps = callPackage ./bazelDerivation.nix { } {
-    name = "bazelVendorDeps";
+  package = callPackage ./bazelDerivation.nix { } {
     inherit
+      name
       src
       postUnpack
       patches
@@ -102,33 +103,28 @@ let
       env
       nativeBuildInputs
       ;
-    inherit registry bazelRepoCache;
-    inherit
-      bazel
-      targets
-      startupArgs
-      serverJavabase
-      ;
     buildInputs = lib.optional (!stdenv.hostPlatform.isDarwin) autoPatchelfHook ++ buildInputs;
     inherit autoPatchelfIgnoreMissingDeps;
     # autoPatchelf will cross-link different jdks if run on top-level, we'll run manually
     dontAutoPatchelf = true;
-    command = "vendor";
-    commandArgs = [ "--vendor_dir=vendor_dir" ] ++ commandArgs;
     bazelPreBuild = ''
       mkdir vendor_dir
-    '' + bazelPreBuild;
-    bazelPostBuild = ''
-                    # remove symlinks that point to locations under bazel_src/
-                    find vendor_dir -type l -lname "$HOME/*" -exec rm '{}' \;
-                    # remove symlinks to temp build directory on darwin
-                    find vendor_dir -type l -lname "/private/var/tmp/*" -exec rm '{}' \;
-                    # remove broken symlinks
-                    find vendor_dir -xtype l -exec rm '{}' \;
-
-                    # remove .marker files referencing NIX_STORE as those references aren't allowed in FOD
-                    (${gnugrep}/bin/grep -rI "$NIX_STORE/" vendor_dir --files-with-matches --include="*.marker" --null || true) \
-                      | xargs -0 --no-run-if-empty rm
+      ${bazelPreBuild}
+      ${bazel}/bin/bazel ${
+        lib.escapeShellArgs (
+          lib.optional (serverJavabase != null) "--server_javabase=${serverJavabase}"
+          ++ [ "--batch" ]
+          ++ startupArgs
+        )
+      } vendor ${
+        lib.escapeShellArgs (
+          ["--vendor_dir=vendor_dir"]
+          ++ lib.optional (registry != null) "--registry=file://${registry}"
+          ++ lib.optional (bazelRepoCache != null) "--repository_cache=repo_cache"
+          ++ commandArgs
+          ++ targets
+        )
+      }
 
                     function sedVerbose() {
                       local path=$1; shift;
@@ -152,41 +148,21 @@ let
                             -e 's!/usr/bin/env bash!${bash}/bin/bash!g' \
                             -e 's!/usr/bin/env!${coreutils}/bin/env!g'
                       done;
-    '';
-    installPhase = ''
-      mkdir -p $out/vendor_dir
-      cp -r --reflink=auto vendor_dir/* $out/vendor_dir
+
       # autoPatchelf may fail on some paths without permissions change
-      chmod -R u+w $out/vendor_dir
-      # TODO: make opt-in & customizable
-      # NOTE: this can be really slow on huge vendor dirs due to per-invocation overhead
-      for x in `find $out/vendor_dir -type d -maxdepth 1 -mindepth 1`; do autoPatchelf "$x"; done;
+      chmod -R u+w vendor_dir
+      ${builtins.concatStringsSep "\n" (map (d: "autoPatchelf \"vendor_dir/${d}\"") autoPatchelfVendorDirs)}
     '';
-
-  };
-
-  package = callPackage ./bazelDerivation.nix { } {
-    inherit
-      name
-      src
-      postUnpack
-      patches
-      version
-      sourceRoot
-      env
-      buildInputs
-      nativeBuildInputs
-      ;
-    inherit registry bazelRepoCache bazelVendorDeps;
+    inherit registry bazelRepoCache;
     inherit
       bazel
       targets
       startupArgs
       serverJavabase
-      commandArgs
       ;
+    commandArgs = commandArgs ++ ["--vendor_dir=vendor_dir"];
     inherit installPhase;
     command = "build";
   };
 in
-package // { passthru = { inherit bazelRepoCache bazelVendorDeps; }; }
+package // { passthru = { inherit bazelRepoCache; }; }

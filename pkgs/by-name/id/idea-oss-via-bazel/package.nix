@@ -48,16 +48,22 @@ let
   };
   commandArgs = [
     "--lockfile_mode=off"
-    "--spawn_strategy=standalone" # TODO: investigate, something around /bin/sh in bazel sandbox?
+#    "--spawn_strategy=standalone" # TODO: investigate, something around /bin/sh in bazel sandbox?
     "--sandbox_debug" # TODO: remove
     "--verbose_failures"
     #"--incompatible_strict_action_env=false" # TODO: why is this needed for action_env to take effect?
     #"--action_env=LD_LIBRARY_PATH=${lib.makeLibraryPath [ zlib ]}"
     #"--action_env=PATH=${lib.makeBinPath [ binutils stdenv.cc bash coreutils ]}"
     # TODO: remove in newer versions of idea-oss, where nested bazel isn't called or doesn't use java during fetch phase
-    "--extra_toolchains=@@rules_java++toolchains+local_jdk//:all"
-    "--tool_java_runtime_version=local_jdk_21"
-    "--java_runtime_version=local_jdk_21"
+#    "--extra_toolchains=@@rules_java++toolchains+local_jdk//:all"
+#    "--tool_java_runtime_version=local_jdk_21"
+#    "--java_runtime_version=local_jdk_21"
+
+    "--features=-module_maps" "--host_features=-module_maps"
+#    "--cxxopt=-isystem"
+#    "--cxxopt=${lib.getDev stdenv.cc.cc}/include/c++/v1"
+#    "--host_cxxopt=-isystem"
+#    "--host_cxxopt=${lib.getDev stdenv.cc.cc}/include/c++/v1"
   ];
 in
 bazelPackage {
@@ -92,7 +98,7 @@ bazelPackage {
     ln -s ${srcA} "$sourceRoot/android"
   '';
   patches = [
-    ./module.patch
+    (replaceVars ./module.patch { sysroot = lib.getDev stdenv.cc.libc; })
     (addFilePatch {
       path = "b/build/rules_java_stub.patch";
       file = replaceVars ./rules_java_stub.patch { bash = lib.getExe bash; };
@@ -111,12 +117,19 @@ bazelPackage {
       path = "b/platform/build-scripts/bazel/build/cc_wrapper.patch";
       file = replaceVars ./cc_wrapper.patch { bash = lib.getExe bash; };
     })
-    ./llvm.patch
+    #./llvm.patch
     (replaceVars ./bash.patch { bash = lib.getExe bash; })
     (replaceVars ./bazel.patch {
       bazel = lib.getExe bazel_8;
       commandArgs = lib.concatStringsSep " " (commandArgs ++ ["--registry=file://${registry}"]);
     })
+  ];
+  autoPatchelfVendorDirs = [
+    "toolchains_llvm++llvm+llvm_toolchain_llvm"
+    "rules_python++python+python_3_11_x86_64-unknown-linux-gnu"
+    "rules_java++toolchains+remote_java_tools_linux"
+    "+jbr_toolchains+remotejbr21_linux"
+    "rules_java++toolchains+remotejdk25_linux"
   ];
   bazelPreBuild = ''
     # just in case there's no newline at the end of file
@@ -124,6 +137,9 @@ bazelPackage {
     # covered by patch
     # echo "common ${builtins.concatStringsSep " " commandArgs}" >> platform/build-scripts/bazel/.bazelrc
     # echo "common --registry=file://${registry}" >> platform/build-scripts/bazel/.bazelrc
+
+    # remote jdk won't work unpatched for repo fetching phase in nested bazel call
+    echo "run --extra_toolchains=@@rules_java++toolchains+local_jdk//:all --tool_java_runtime_version=local_jdk_21 --java_runtime_version=local_jdk_21" >> platform/build-scripts/bazel/.bazelrc
 
     # TODO: tricky decision to make, for read flow nested bazel should see it, but for population flow
     #       there's 2 bazel invocations sharing those dirs - is it safe? Or at least when deps&patches&options are the same?
@@ -138,9 +154,10 @@ bazelPackage {
     # - fix downloading of extra artifacts by installer
     # - nix patching for downloaded artifacts
     # - select os&arch? Or maybe auto works ok?
-    bazel run @community//build:i_build_target -- -Dintellij.build.target.os=linux -Dintellij.build.target.arch=x64 intellij_community
+    ${bazel_8}/bin/bazel run --registry=file://${registry} --repository_cache=repo_cache --vendor_dir=vendor_dir ${builtins.concatStringsSep " " commandArgs} @community//build:i_build_target -- -Dintellij.build.target.os=linux -Dintellij.build.target.arch=x64 intellij_community
     # TODO: collect the results
-    exit 1
+    mkdir -p $out
+    cp -r idea-oss $out/
   '';
   env = {
     USE_BAZEL_VERSION = bazel_8.version;
@@ -150,7 +167,7 @@ bazelPackage {
   bazelRepoCacheFOD = {
     outputHash =
       {
-        x86_64-linux = "sha256-3kKUhKOt8U0tN4++rHVnJaaQI99+ALExHLyPv148mJQ=";
+        x86_64-linux = "sha256-EVsuIUj8rCBEkk6ZIAjEiRvJ9N7LVwxzBVtOv/OiFxU=";
       }
       .${stdenv.hostPlatform.system};
     outputHashAlgo = "sha256";

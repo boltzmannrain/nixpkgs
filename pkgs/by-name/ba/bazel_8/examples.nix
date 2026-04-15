@@ -38,6 +38,10 @@ in
       "//:ProjectRunner"
       "@@rules_java+//toolchains:platformclasspath"
     ];
+    autoPatchelfVendorDirs = [
+      "rules_java++toolchains+remotejdk11_linux"
+      "rules_java++toolchains+remotejdk21_linux"
+    ];
     bazel = bazel_8;
     buildInputs = [
       zlib
