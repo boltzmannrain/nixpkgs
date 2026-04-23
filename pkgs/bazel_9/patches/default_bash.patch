@@ -1,5 +1,5 @@
 diff --git a/src/main/java/com/google/devtools/build/lib/bazel/rules/BazelRuleClassProvider.java b/src/main/java/com/google/devtools/build/lib/bazel/rules/BazelRuleClassProvider.java
-index 8ac0c2bb97..6e0030f424 100644
+index 8ac0c2bb97..4233eccf19 100644
 --- a/src/main/java/com/google/devtools/build/lib/bazel/rules/BazelRuleClassProvider.java
 +++ b/src/main/java/com/google/devtools/build/lib/bazel/rules/BazelRuleClassProvider.java
 @@ -87,16 +87,16 @@ public class BazelRuleClassProvider {
@@ -24,4 +24,3 @@ index 8ac0c2bb97..6e0030f424 100644
            .put(OS.UNKNOWN, FALLBACK_SHELL)
            .buildOrThrow();
  
-
