@@ -4,4 +4,4 @@
   ];
 } }:
 
-pkgs.bazel_8
+pkgs.bazel_9
